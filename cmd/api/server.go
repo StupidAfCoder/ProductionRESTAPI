@@ -6,72 +6,8 @@ import (
 	"log"
 	"net/http"
 	mw "schoolREST/internal/api/middlewares"
-	"time"
+	"schoolREST/internal/api/router"
 )
-
-type user struct {
-	Name string `json:"name"`
-	Age  string `json:"age"`
-	City string `json:"city"`
-}
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello From The Root Route"))
-	fmt.Println("Hello From The Root Route")
-}
-
-func teachersHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.Method)
-	switch r.Method {
-	case http.MethodGet:
-		w.Write([]byte("This is the GET Method for teachers routes"))
-	case http.MethodPost:
-		w.Write([]byte("This is the PUT Method for teachers routes"))
-	case http.MethodDelete:
-		w.Write([]byte("This is the DELETE Method for teachers routes"))
-	case http.MethodPatch:
-		w.Write([]byte("This is the PATCH Method for teachers routes"))
-	}
-
-}
-
-func studentsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.Method)
-	switch r.Method {
-	case http.MethodGet:
-		w.Write([]byte("This is the GET Method for students routes"))
-	case http.MethodPost:
-		w.Write([]byte("This is the PUT Method for students routes"))
-	case http.MethodDelete:
-		w.Write([]byte("This is the DELETE Method for students routes"))
-	case http.MethodPatch:
-		w.Write([]byte("This is the PATCH Method for students routes"))
-	}
-
-}
-
-func execsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.Method)
-	switch r.Method {
-	case http.MethodGet:
-		w.Write([]byte("This is the GET Method for Executives routes"))
-	case http.MethodPost:
-		fmt.Println("Query :", r.URL.Query())
-		fmt.Println("Query :", r.URL.Query().Get("name"))
-
-		err := r.ParseForm()
-		if err != nil {
-			return
-		}
-		fmt.Println("Form POST methods :", r.Form)
-		w.Write([]byte("This is the PUT Method for Executives routes"))
-	case http.MethodDelete:
-		w.Write([]byte("This is the DELETE Method for Executives routes"))
-	case http.MethodPatch:
-		w.Write([]byte("This is the PATCH Method for Executives routes"))
-	}
-
-}
 
 func main() {
 
@@ -80,30 +16,29 @@ func main() {
 	cert := "cert.pem"
 	key := "key.pem"
 
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/", rootHandler)
-
-	mux.HandleFunc("/teachers", teachersHandler)
-
-	mux.HandleFunc("/students", studentsHandler)
-
-	mux.HandleFunc("/execs", execsHandler)
-
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
 
-	rl := mw.NewRateLimiter(8, time.Minute)
+	//These will  be used again but for now they are commented out!!!
 
-	hppOptions := mw.HPPOptions{
-		CheckQuery:                  true,
-		CheckBody:                   true,
-		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
-		Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
-	}
+	// rl := mw.NewRateLimiter(8, time.Minute)
 
-	secureMux := mw.Hpp(hppOptions)(rl.Middleware(mw.Compression(mw.ResponseTimeMiddleware(mw.Security_headers(mw.Cors(mux))))))
+	// hppOptions := mw.HPPOptions{
+	// 	CheckQuery:                  true,
+	// 	CheckBody:                   true,
+	// 	CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+	// 	Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	// }
+
+	/* 	secureMux := mw.Cors(rl.Middleware(mw.ResponseTimeMiddleware(mw.Security_headers(mw.Compression(mw.Hpp(hppOptions)(mux)))))) //This specific middleware chaining reflects that the request travels from Cors to Hpp and then request travels from Hpp to cors again!!
+	 */
+
+	// secureMux := utils.ApplyMiddlewares(mux, mw.Hpp(hppOptions), mw.Compression, mw.Security_headers, mw.ResponseTimeMiddleware, rl.Middleware, mw.Cors)
+	//For designing the end points we will be using only security headers since we have tested the middlewares we will test them again after endpoints have been made
+
+	router := router.Router()
+	secureMux := mw.Security_headers(router)
 
 	server := &http.Server{
 		Addr:      port,
