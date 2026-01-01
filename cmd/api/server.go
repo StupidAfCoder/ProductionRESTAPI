@@ -5,13 +5,21 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	mw "schoolREST/internal/api/middlewares"
 	"schoolREST/internal/api/router"
+	"schoolREST/internal/repository/sqlconnect"
 )
 
 func main() {
 
-	port := ":3000"
+	_, err := sqlconnect.ConnectDB()
+	if err != nil {
+		fmt.Println("Error -----", err.Error())
+		return
+	}
+
+	port := os.Getenv("API_PORT")
 
 	cert := "cert.pem"
 	key := "key.pem"
@@ -47,7 +55,7 @@ func main() {
 	}
 
 	fmt.Println("Server starting on port ", port)
-	err := server.ListenAndServeTLS(cert, key)
+	err = server.ListenAndServeTLS(cert, key)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
