@@ -9,42 +9,7 @@ import (
 	"schoolREST/internal/repository/sqlconnect"
 	"strconv"
 	"strings"
-	"sync"
 )
-
-var (
-	teachers = make(map[int]models.Teacher)
-	mutex    = &sync.Mutex{}
-	nextID   = 1
-)
-
-func init() {
-	//Creating some dummy data for the API
-	teachers[nextID] = models.Teacher{
-		ID:        nextID,
-		FirstName: "Krish",
-		LastName:  "Jain",
-		Class:     "10A",
-		Subject:   "Math",
-	}
-	nextID++
-	teachers[nextID] = models.Teacher{
-		ID:        nextID,
-		FirstName: "Sonali",
-		LastName:  "Sharma",
-		Class:     "5A",
-		Subject:   "English",
-	}
-	nextID++
-	teachers[nextID] = models.Teacher{
-		ID:        nextID,
-		FirstName: "Rakshash",
-		LastName:  "Satan",
-		Class:     "12B",
-		Subject:   "Physics",
-	}
-	nextID++
-}
 
 func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.Method)
