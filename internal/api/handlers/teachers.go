@@ -265,6 +265,34 @@ func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid Request", http.StatusBadRequest)
 		return
 	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Error during transaction starting", http.StatusInternalServerError)
+		return
+	}
+
+	for _, update := range updates {
+		id, ok := update["id"].(int)
+		if !ok {
+			tx.Rollback()
+			http.Error(w, "Invalid Teacher ID", http.StatusBadRequest)
+			return
+		}
+		var teacherFromDb models.Teacher
+		err := db.QueryRow("SELECT id , first_name , last_name , email , class , subject FROM teachers WHERE id = ?", id).Scan(&teacherFromDb.ID, &teacherFromDb.FirstName, &teacherFromDb.LastName, &teacherFromDb.Email, &teacherFromDb.Class, &teacherFromDb.Subject)
+		if err != nil {
+			tx.Rollback()
+			if err == sql.ErrNoRows {
+				http.Error(w, "Teacher not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "Error retrieving teacher", http.StatusInternalServerError)
+			return
+		}
+
+	}
 }
 
 func PatchOneTeacherHandler(w http.ResponseWriter, r *http.Request) {
