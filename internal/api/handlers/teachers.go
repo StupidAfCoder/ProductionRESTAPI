@@ -274,14 +274,21 @@ func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, update := range updates {
-		id, ok := update["id"].(int)
+		idStr, ok := update["id"].(string)
 		if !ok {
 			tx.Rollback()
 			http.Error(w, "Invalid Teacher ID", http.StatusBadRequest)
 			return
 		}
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			tx.Rollback()
+			http.Error(w, "Error converting String to int for ID", http.StatusBadRequest)
+			return
+		}
+
 		var teacherFromDb models.Teacher
-		err := db.QueryRow("SELECT id , first_name , last_name , email , class , subject FROM teachers WHERE id = ?", id).Scan(&teacherFromDb.ID, &teacherFromDb.FirstName, &teacherFromDb.LastName, &teacherFromDb.Email, &teacherFromDb.Class, &teacherFromDb.Subject)
+		err = db.QueryRow("SELECT id , first_name , last_name , email , class , subject FROM teachers WHERE id = ?", id).Scan(&teacherFromDb.ID, &teacherFromDb.FirstName, &teacherFromDb.LastName, &teacherFromDb.Email, &teacherFromDb.Class, &teacherFromDb.Subject)
 		if err != nil {
 			tx.Rollback()
 			if err == sql.ErrNoRows {
@@ -291,8 +298,45 @@ func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error retrieving teacher", http.StatusInternalServerError)
 			return
 		}
+		teacherVal := reflect.ValueOf(&teacherFromDb).Elem()
+		teacherType := teacherVal.Type()
 
+		for key, value := range update {
+			if key == "id" {
+				continue //skip this iteration
+			}
+			for i := 0; i < teacherVal.NumField(); i++ {
+				field := teacherType.Field(i)
+				if field.Tag.Get("json") == key+",omitempty" {
+					fieldVal := teacherVal.Field(i)
+					if fieldVal.CanSet() {
+						val := reflect.ValueOf(value)
+						if val.Type().ConvertibleTo(fieldVal.Type()) {
+							fieldVal.Set(val.Convert(fieldVal.Type()))
+						} else {
+							tx.Rollback()
+							log.Printf("Unsuccessful in converting the %v to %v", val.Type(), fieldVal.Type())
+							return
+						}
+					}
+					break
+				}
+			}
+		}
+
+		_, err = tx.Exec("UPDATE teachers SET first_name = ? , last_name = ? , email = ? , class = ? , subject = ? WHERE id = ?", teacherFromDb.FirstName, teacherFromDb.LastName, teacherFromDb.Email, teacherFromDb.Class, teacherFromDb.Subject, teacherFromDb.ID)
+		if err != nil {
+			http.Error(w, "Error updating teacher", http.StatusInternalServerError)
+			return
+		}
 	}
+	err = tx.Commit()
+	if err != nil {
+		http.Error(w, "Error commiting the transaction", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+
 }
 
 func PatchOneTeacherHandler(w http.ResponseWriter, r *http.Request) {
